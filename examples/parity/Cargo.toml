@@ -1,0 +1,10 @@
+[package]
+name = "parity"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+serde_json = "1.0.154"
+
+scratch-vm = { path = "../../", features = ["scratch", "cli-frontend", "scratch-addons-debugger"] }
+tokio = { version = "1.54.1", features = ["macros", "rt-multi-thread"] }

@@ -1,0 +1,26 @@
+[package]
+name = "scratch-vm"
+version = "0.1.0"
+edition = "2024"
+
+[workspace]
+resolver = "3"
+members = [
+    "examples/bench",
+    "examples/dev",
+    "examples/parity"
+]
+
+[dependencies]
+chrono = { version = "0.4", default-features = false, features = ["clock"], optional = true }
+rand = "0.10.3"
+serde_json = "1.0.154"
+thiserror = "2.0.21"
+tokio = { version = "1.54.1", features = ["rt", "time"], optional = true }
+uuid = { version = "1.29.0", features = ["v4"] }
+
+[features]
+scratch = []
+mistwarp = ["scratch"]
+cli-frontend = ["dep:tokio", "dep:chrono"]
+scratch-addons-debugger = ["scratch"]

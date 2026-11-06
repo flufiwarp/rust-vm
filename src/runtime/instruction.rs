@@ -1,0 +1,251 @@
+use crate::{Value, cfg_variants};
+
+#[cfg(feature = "scratch")]
+use crate::Field;
+#[cfg(feature = "scratch")]
+use std::collections::HashMap;
+
+// Reporter inputs are single instruction trees, not stacks: their `next` links
+// must never be evaluated as part of the input. Fields retain their Scratch IDs.
+cfg_variants! {
+    #[derive(Debug, Clone, PartialEq)]
+    pub enum Instruction {
+        Literal(Value),
+        Request { request: crate::runtime::request::Request },
+        Yield,
+        Forever { body: Vec<Instruction> },
+
+        #[cfg(feature = "scratch")] {
+            // Motion
+            MoveSteps { steps: Box<Instruction> },
+            TurnRight { degrees: Box<Instruction> },
+            TurnLeft { degrees: Box<Instruction> },
+            Goto { to: Box<Instruction> },
+            GotoXY { x: Box<Instruction>, y: Box<Instruction> },
+            GlideTo { secs: Box<Instruction>, to: Box<Instruction> },
+            GlideSecsToXY { secs: Box<Instruction>, x: Box<Instruction>, y: Box<Instruction> },
+            PointInDirection { direction: Box<Instruction> },
+            PointTowards { towards: Box<Instruction> },
+            ChangeXBy { dx: Box<Instruction> },
+            SetX { x: Box<Instruction> },
+            ChangeYBy { dy: Box<Instruction> },
+            SetY { y: Box<Instruction> },
+            IfOnEdgeBounce,
+            SetRotationStyle { style: Field },
+            XPosition,
+            YPosition,
+            Direction,
+            // Legacy compatibility blocks; intentionally no-op in Scratch 3.
+            ScrollRight { distance: Box<Instruction> },
+            ScrollUp { distance: Box<Instruction> },
+            AlignScene { alignment: Field },
+            XScroll,
+            YScroll,
+
+            // Looks
+            SayForSecs { message: Box<Instruction>, secs: Box<Instruction> },
+            Say { message: Box<Instruction> },
+            ThinkForSecs { message: Box<Instruction>, secs: Box<Instruction> },
+            Think { message: Box<Instruction> },
+            SwitchCostumeTo { costume: Box<Instruction> },
+            NextCostume,
+            SwitchBackdropTo { backdrop: Box<Instruction> },
+            SwitchBackdropToAndWait { backdrop: Box<Instruction> },
+            NextBackdrop,
+            ChangeSizeBy { change: Box<Instruction> },
+            SetSizeTo { size: Box<Instruction> },
+            ChangeEffectBy { effect: Field, change: Box<Instruction> },
+            SetEffectTo { effect: Field, value: Box<Instruction> },
+            ClearGraphicEffects,
+            Show,
+            Hide,
+            GoToFrontBack { front_back: Field },
+            GoForwardBackwardLayers { forward_backward: Field, layers: Box<Instruction> },
+            CostumeNumberName { number_name: Field },
+            BackdropNumberName { number_name: Field },
+            Size,
+            HideAllSprites,
+            ChangeStretchBy { change: Box<Instruction> },
+            SetStretchTo { stretch: Box<Instruction> },
+
+            // Sound
+            PlaySoundUntilDone { sound: Box<Instruction> },
+            PlaySound { sound: Box<Instruction> },
+            StopAllSounds,
+            ChangeSoundEffectBy { effect: Field, value: Box<Instruction> },
+            SetSoundEffectTo { effect: Field, value: Box<Instruction> },
+            ClearSoundEffects,
+            ChangeVolumeBy { volume: Box<Instruction> },
+            SetVolumeTo { volume: Box<Instruction> },
+            Volume,
+            SoundBeatsMenu { beats: Field },
+            SoundEffectsMenu { effect: Field },
+
+            // Events (hat instructions retain their trigger parameters)
+            WhenFlagClicked,
+            WhenKeyPressed { key: Field },
+            WhenThisSpriteClicked,
+            WhenStageClicked,
+            WhenBackdropSwitchesTo { backdrop: Field },
+            WhenGreaterThan { sensor: Field, value: Box<Instruction> },
+            WhenIReceive { broadcast: Field },
+            WhenTouchingObject { object: Box<Instruction> },
+            Broadcast { broadcast: Box<Instruction> },
+            BroadcastAndWait { broadcast: Box<Instruction> },
+
+            // Control
+            Wait { duration: Box<Instruction> },
+            Repeat { times: Box<Instruction>, body: Vec<Instruction> },
+            If { condition: Box<Instruction>, body: Vec<Instruction> },
+            IfElse { condition: Box<Instruction>, body: Vec<Instruction>, else_body: Vec<Instruction> },
+            WaitUntil { condition: Box<Instruction> },
+            RepeatUntil { condition: Box<Instruction>, body: Vec<Instruction> },
+            While { condition: Box<Instruction>, body: Vec<Instruction> },
+            ForEach { variable: Field, value: Box<Instruction>, body: Vec<Instruction> },
+            Stop { option: Field },
+            StartAsClone,
+            CreateCloneOf { clone: Box<Instruction> },
+            DeleteThisClone,
+            GetCounter,
+            IncrCounter,
+            ClearCounter,
+            AllAtOnce { body: Vec<Instruction> },
+
+            // Sensing
+            TouchingObject { object: Box<Instruction> },
+            TouchingColor { color: Box<Instruction> },
+            ColorIsTouchingColor { color: Box<Instruction>, color2: Box<Instruction> },
+            DistanceTo { to: Box<Instruction> },
+            AskAndWait { question: Box<Instruction> },
+            Answer,
+            KeyPressed { key: Box<Instruction> },
+            MouseDown,
+            MouseX,
+            MouseY,
+            SetDragMode { mode: Field },
+            Loudness,
+            Loud,
+            Timer,
+            ResetTimer,
+            Of { property: Field, object: Box<Instruction> },
+            Current { current_menu: Field },
+            DaysSince2000,
+            Username,
+            UserId,
+
+            // Operators
+            Add { num1: Box<Instruction>, num2: Box<Instruction> },
+            Subtract { num1: Box<Instruction>, num2: Box<Instruction> },
+            Multiply { num1: Box<Instruction>, num2: Box<Instruction> },
+            Divide { num1: Box<Instruction>, num2: Box<Instruction> },
+            Random { from: Box<Instruction>, to: Box<Instruction> },
+            GreaterThan { operand1: Box<Instruction>, operand2: Box<Instruction> },
+            LessThan { operand1: Box<Instruction>, operand2: Box<Instruction> },
+            Equals { operand1: Box<Instruction>, operand2: Box<Instruction> },
+            And { operand1: Box<Instruction>, operand2: Box<Instruction> },
+            Or { operand1: Box<Instruction>, operand2: Box<Instruction> },
+            Not { operand: Box<Instruction> },
+            Join { string1: Box<Instruction>, string2: Box<Instruction> },
+            LetterOf { letter: Box<Instruction>, string: Box<Instruction> },
+            Length { string: Box<Instruction> },
+            Contains { string1: Box<Instruction>, string2: Box<Instruction> },
+            Mod { num1: Box<Instruction>, num2: Box<Instruction> },
+            Round { num: Box<Instruction> },
+            MathOp { operator: Field, num: Box<Instruction> },
+
+            // Variables
+            Variable { variable: Field },
+            SetVariableTo { variable: Field, value: Box<Instruction> },
+            ChangeVariableBy { variable: Field, value: Box<Instruction> },
+            ShowVariable { variable: Field },
+            HideVariable { variable: Field },
+
+            // Lists
+            ListContents { list: Field },
+            AddToList { list: Field, item: Box<Instruction> },
+            DeleteOfList { list: Field, index: Box<Instruction> },
+            DeleteAllOfList { list: Field },
+            InsertAtList { list: Field, index: Box<Instruction>, item: Box<Instruction> },
+            ReplaceItemOfList { list: Field, index: Box<Instruction>, item: Box<Instruction> },
+            ItemOfList { list: Field, index: Box<Instruction> },
+            ItemNumOfList { list: Field, item: Box<Instruction> },
+            LengthOfList { list: Field },
+            ListContainsItem { list: Field, item: Box<Instruction> },
+            ShowList { list: Field },
+            HideList { list: Field },
+
+            // Custom blocks. Keep mutation metadata (signature, argument IDs,
+            // defaults and warp flag); argument maps are keyed by Scratch ID.
+            ProceduresDefinition { prototype: Box<Instruction> },
+            ProceduresPrototype { mutation: serde_json::Value, arguments: HashMap<String, Instruction> },
+            ProceduresCall { mutation: serde_json::Value, arguments: HashMap<String, Instruction> },
+            ArgumentReporterStringNumber { name: Field },
+            ArgumentReporterBoolean { name: Field },
+
+            // Pen extension
+            PenClear,
+            PenStamp,
+            PenDown,
+            PenUp,
+            PenSetColor { color: Box<Instruction> },
+            PenChangeColorParamBy { color_param: Box<Instruction>, value: Box<Instruction> },
+            PenSetColorParamTo { color_param: Box<Instruction>, value: Box<Instruction> },
+            PenChangeSizeBy { size: Box<Instruction> },
+            PenSetSizeTo { size: Box<Instruction> },
+            PenSetShade { shade: Box<Instruction> },
+            PenChangeShadeBy { shade: Box<Instruction> },
+            PenSetHue { hue: Box<Instruction> },
+            PenChangeHueBy { hue: Box<Instruction> },
+
+            // Music extension
+            MusicPlayDrumForBeats { drum: Box<Instruction>, beats: Box<Instruction> },
+            MusicRestForBeats { beats: Box<Instruction> },
+            MusicPlayNoteForBeats { note: Box<Instruction>, beats: Box<Instruction> },
+            MusicSetInstrument { instrument: Box<Instruction> },
+            MusicSetTempo { tempo: Box<Instruction> },
+            MusicChangeTempo { tempo: Box<Instruction> },
+            MusicGetTempo,
+            MusicMidiPlayDrumForBeats { drum: Box<Instruction>, beats: Box<Instruction> },
+            MusicMidiSetInstrument { instrument: Box<Instruction> },
+
+            // Video Sensing extension
+            VideoSensingWhenMotionGreaterThan { reference: Box<Instruction> },
+            VideoSensingVideoOn { attribute: Box<Instruction>, subject: Box<Instruction> },
+            VideoSensingVideoToggle { video_state: Box<Instruction> },
+            VideoSensingSetVideoTransparency { transparency: Box<Instruction> },
+
+            // Text to Speech extension
+            Text2SpeechSpeakAndWait { words: Box<Instruction> },
+            Text2SpeechSetVoice { voice: Box<Instruction> },
+            Text2SpeechSetLanguage { language: Box<Instruction> },
+
+            // Translate extension
+            TranslateGetTranslate { words: Box<Instruction>, language: Box<Instruction> },
+            TranslateGetViewerLanguage,
+
+            // Menu / shadow blocks
+            MotionGotoMenu { to: Field },
+            MotionGlideToMenu { to: Field },
+            MotionPointTowardsMenu { towards: Field },
+            LooksCostume { costume: Field },
+            LooksBackdrops { backdrop: Field },
+            SoundSoundsMenu { sound: Field },
+            EventBroadcastMenu { broadcast: Field },
+            ControlCreateCloneOfMenu { clone: Field },
+            SensingTouchingObjectMenu { object: Field },
+            SensingDistanceToMenu { to: Field },
+            SensingKeyOptions { key: Field },
+            SensingOfObjectMenu { object: Field },
+            PenMenuColorParam { color_param: Field },
+            MusicMenuDrum { drum: Field },
+            MusicMenuInstrument { instrument: Field },
+            MusicNote { note: Field },
+            VideoSensingMenuAttribute { attribute: Field },
+            VideoSensingMenuSubject { subject: Field },
+            VideoSensingMenuVideoState { video_state: Field },
+            Text2SpeechMenuVoices { voice: Field },
+            Text2SpeechMenuLanguages { language: Field },
+            TranslateMenuLanguages { language: Field },
+        }
+    }
+}
